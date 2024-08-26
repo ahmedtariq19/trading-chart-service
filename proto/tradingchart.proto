@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package tradingchart;
+option go_package = "./;tradingchart";
+
+service CandlestickService {
+  rpc StreamCandlesticks (Empty) returns (stream Candlestick);
+}
+
+message Empty {}
+
+message Candlestick {
+  string symbol = 1;
+  int64 timestamp = 2;
+  double open = 3;
+  double high = 4;
+  double low = 5;
+  double close = 6;
+}
