@@ -3,15 +3,16 @@ package ohlc
 import (
 	"sync"
 	"time"
+	"trading-chart-service/binance"
 )
 
 type Candlestick struct {
-	Symbol    string    // The trading symbol (e.g., BTCUSDT)
-	Timestamp time.Time // The timestamp for the candlestick
-	Open      float64   // The opening price
-	High      float64   // The highest price during the timeframe
-	Low       float64   // The lowest price during the timeframe
-	Close     float64   // The closing price
+	Symbol    string
+	Timestamp time.Time
+	Open      float64
+	High      float64
+	Low       float64
+	Close     float64
 }
 
 type Aggregator struct {
@@ -29,17 +30,18 @@ func NewAggregator() *Aggregator {
 }
 
 // ProcessTick processes a new tick, updates the current candlestick, and returns the completed candlestick if it is done
-func (a *Aggregator) ProcessTick(symbol string, price float64, timestamp int64) (Candlestick, bool) {
+func (a *Aggregator) ProcessTick(tick binance.Tick) (Candlestick, bool) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	t := time.Unix(0, timestamp*int64(time.Millisecond)).Truncate(time.Minute)
-	cs, exists := a.candlesticks[symbol]
+	// Convert timestamp to time.Time
+	timestamp := time.Unix(0, tick.Timestamp*int64(time.Millisecond)).Truncate(time.Minute)
+	cs, exists := a.candlesticks[tick.Symbol]
 
 	var completedCandlestick Candlestick
 	isComplete := false
 
-	if !exists || t.After(cs.Timestamp) {
+	if !exists || timestamp.After(cs.Timestamp) {
 		if exists {
 			// The previous candlestick is complete, so broadcast it
 			completedCandlestick = cs
@@ -48,25 +50,25 @@ func (a *Aggregator) ProcessTick(symbol string, price float64, timestamp int64) 
 		}
 		// Create a new candlestick with the symbol
 		cs = Candlestick{
-			Symbol:    symbol,
-			Timestamp: t,
-			Open:      price,
-			High:      price,
-			Low:       price,
-			Close:     price,
+			Symbol:    tick.Symbol,
+			Timestamp: timestamp,
+			Open:      tick.Price,
+			High:      tick.Price,
+			Low:       tick.Price,
+			Close:     tick.Price,
 		}
 	} else {
 		// Update the existing candlestick
-		if price > cs.High {
-			cs.High = price
+		if tick.Price > cs.High {
+			cs.High = tick.Price
 		}
-		if price < cs.Low {
-			cs.Low = price
+		if tick.Price < cs.Low {
+			cs.Low = tick.Price
 		}
-		cs.Close = price
+		cs.Close = tick.Price
 	}
 
-	a.candlesticks[symbol] = cs
+	a.candlesticks[tick.Symbol] = cs
 	return completedCandlestick, isComplete
 }
 
