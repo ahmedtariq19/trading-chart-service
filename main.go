@@ -18,7 +18,6 @@ type server struct {
 	db         *db.Database
 }
 
-// StreamCandlesticks broadcasts candlesticks to connected gRPC clients
 func (s *server) StreamCandlesticks(req *pb.Empty, stream pb.CandlestickService_StreamCandlesticksServer) error {
 	candlestickChan := s.aggregator.Subscribe()
 
@@ -40,8 +39,8 @@ func (s *server) StreamCandlesticks(req *pb.Empty, stream pb.CandlestickService_
 }
 
 func main() {
-	// Initialize the database
-	dsn := "host=localhost user=postgres password=yourpassword dbname=trading_chart port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+
+	dsn := "host=localhost user=user password=password dbname=database port=5432 sslmode=allow"
 	databaseConn, err := db.InitDB(dsn)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
@@ -59,7 +58,7 @@ func main() {
 	// Process ticks and handle OHLC aggregation and database storage
 	go func() {
 		for tick := range tickChan {
-			candlestick, isComplete := aggregator.ProcessTick(tick.Symbol, tick.Price, tick.Timestamp)
+			candlestick, isComplete := aggregator.ProcessTick(tick)
 			if isComplete {
 				// Store the completed candlestick in the database
 				if err := database.StoreCandlestick(tick.Symbol, candlestick); err != nil {
